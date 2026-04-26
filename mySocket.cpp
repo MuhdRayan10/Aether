@@ -1,4 +1,4 @@
-#include "MySocket.h"
+#include "mySocket.h"
 #include <iostream>
 
 bool MySocket::initialized = false;
@@ -57,4 +57,36 @@ MySocket::~MySocket() {
             initialized = false; // Reset initialized flag
         #endif
     }
+}
+
+// Connect to server code
+bool MySocket::connectSocket(const char* ipAddress, int port) {
+    struct sockaddr_in serverAddress;
+    std::memset(&serverAddress, 0, sizeof(serverAddress)); // fill with zeroes to remove garbage data
+
+    serverAddress.sin_family = AF_INET; // We are using IPv4
+
+    // Convert port to network byte order (from little-endian to big-endian)
+    serverAddress.sin_port = htons(port); 
+
+    // Convert IP address from string to binary form
+    int result = inet_pton(AF_INET, ipAddress, &serverAddress.sin_addr);
+
+    if (result != 1) {
+        std::cerr << "Invalid IP address!" << std::endl;
+        return false;
+    }
+
+    // Connect to the server
+    // Note: We have to cast sockaddr_in to sockaddr pointer
+    result = connect(internalSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)); 
+    if (result < 0) {
+        std::cerr << "Connection failed :( Error: " << result << std::endl;
+        return false;
+    }
+
+    // If we reach here, connection was successful, hooray!
+    std::cout << "Successful connection to " << ipAddress << ":" << port << std::endl;
+    return true;
+
 }

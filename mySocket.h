@@ -33,6 +33,7 @@ class MySocket {
     public:
         MySocket(); // Constructor to create socket
         ~MySocket(); // Destructor to close socket
+        bool connectSocket(const char* ipAddress, int port); // Connect to a server
 };
 
 #endif
