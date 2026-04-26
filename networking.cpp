@@ -12,21 +12,61 @@
 
 #endif
 
+// socket can be of type SOCKET for Windows and int for unix systems
 #ifdef _WIN32
-
-    // Initialize Winsock
-    WSADATA wsaData;
-    int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-
-    if (iResult != 0) {
-        std::cerr << "Oops, WSAStartup failed! Error: " << iResult << std::endl;
-    }
+    using SocketHandler = SOCKET;
+#else
+    using SocketHandler = int;
 #endif
 
-// TODO: Socket creation 
+int main() {
+    
+    #ifdef _WIN32
 
-class MySocket {
+        // Initialize Winsock
+        WSADATA wsaData;
+        int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+
+        if (iResult != 0) {
+            std::cerr << "Oops, WSAStartup failed! Error: " << iResult << std::endl;
+            return 1;
+        }
+    #endif
+
+    // TODO: Socket creation 
+
+    class MySocket {
+        private:
+            SocketHandler internalSocket;
+
+        public:
+            MySocket() {
+                // Create socket code
+                internalSocket = socket(AF_INET, SOCK_STREAM, 0); // We are using IPv4, TCP
+
+                // Error check
+                #ifdef _WIN32
+                    if (internalSocket == INVALID_SOCKET) {
+                        std:cerr << "Windows socket creation failed!" << std::endl;
+                    }
+                #else
+                    if (internalSocket < 0) {
+                        std:cerr << "Unix socket creation failed!" << std::endl;
+                    }
+                #endif
+
+            }
+
+            ~MySocket() {
+                // Destroy socket code
+                #ifdef _WIN32
+                    closesocket(internalSocket);
+                #else
+                    close(internalSocket);
+                #endif
+            }
+
+    }
+
+    // TODO: Closing sockets
 }
-
-
-// TODO: Closing sockets
