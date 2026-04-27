@@ -57,10 +57,17 @@ MySocket::~MySocket() {
             initialized = false; // Reset initialized flag
         #endif
     }
+    currentState = SocketState::DISCONNECTED; // Update state to disconnected
 }
 
 // Connect to server code
 bool MySocket::connectSocket(const char* ipAddress, int port) {
+    
+    if (isConnected()) {
+        std::cerr << "Socket is already connected!" << std::endl;
+        return true; // We can return true since it's already connected, but we warn the user about it
+    }
+    
     struct sockaddr_in serverAddress;
     std::memset(&serverAddress, 0, sizeof(serverAddress)); // fill with zeroes to remove garbage data
 
@@ -87,6 +94,7 @@ bool MySocket::connectSocket(const char* ipAddress, int port) {
 
     // If we reach here, connection was successful, hooray!
     std::cout << "Successful connection to " << ipAddress << ":" << port << std::endl;
+    currentState = SocketState::CONNECTED; // Update state to connected
     return true;
 
 }

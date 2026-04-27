@@ -4,7 +4,7 @@ A lightweight, high-performance and cross-platform communication protocol writte
 
 Aether is designed to provide a stable protocol between different operating systems (Windows, macOS, and Linux) by providing a unified wrapper around low-level socket APIs.
 
-Built as a study in systems programming, networking architecture, and encryption/decryption.
+Built as a study in systems programming, networking architecture, and encryption/decryption. (Also to try and packet sniff, but shh!)
 
 
 ## Features
