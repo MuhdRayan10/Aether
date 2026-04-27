@@ -15,6 +15,9 @@
 
 #endif
 
+// General imports
+#include <string>
+
 // socket can be of type SOCKET for Windows and int for unix systems
 #ifdef _WIN32
     using SocketHandler = SOCKET;
@@ -38,12 +41,17 @@ class MySocket {
         static bool initialized; // Tracking if Winsock is initiliazed
         static int activeSockets; // Tracking active sockets to know when to cleanup Winsock
         SocketState currentState = SocketState::DISCONNECTED; // Current state of the socket
-    
+        std::string peerIP; // Store peer IP for reference
+
+
     public:
         MySocket(); // Constructor to create socket
         ~MySocket(); // Destructor to close socket
         bool connectSocket(const char* ipAddress, int port); // Connect to a server
         bool isConnected() const { return currentState == SocketState::CONNECTED; } // Check if socket is connected
+
+        bool sendData(const std::string& data, int flags = 0); // Send data to the server
+        std::string receiveData(int bufferSize = 1024, int flags = 0); // Receive data from the server
 };
 
 #endif

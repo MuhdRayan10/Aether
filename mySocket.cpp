@@ -102,6 +102,31 @@ bool MySocket::connectSocket(const char* ipAddress, int port) {
     // If we reach here, connection was successful, hooray!
     std::cout << "Successful connection to " << ipAddress << ":" << port << std::endl;
     currentState = SocketState::CONNECTED; // Update state to connected
+    peerIP = ipAddress; // Store the connected IP address
     return true;
+
+}
+
+bool MySocket::sendData(const std::string& data, int flags) {
+    // Check if connection is established or not
+    if (!isConnected()) {
+        std::cerr << "Connect socket to server first!" << std::endl;
+        return false;
+    }
+
+    // Sending data to the server
+    int result = send(internalSocket, data.c_str(), data.length(), flags);
+
+    if (result < 0) {
+        // Error, no message sent
+        std::cerr << "Error - No message could be sent :(" << std::endl;
+        currentState = SocketState::ERROR_STATE; // Update state to error
+        return false;
+    }
+
+    // Succesfully sent the message, woohoo!
+    std::cout << result << " bytes of data were sent to " << peerIP << "!" << std::endl;
+    return true;
+
 
 }
