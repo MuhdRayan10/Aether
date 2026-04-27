@@ -169,6 +169,34 @@ bool MySocket::receiveData(std::string& outData, int bufferSize, int flags) {
 
     // Message received successfully!
     outData = std::string(buffer.data(), result);
-    std::cout << "Message: " << outData << std::endl;
     return true;
+}
+
+// THREADING SECTION
+
+// Receiver loop
+
+void MySocket::receiverLoop() {
+    // Keep receiving messages while still connected
+    while (isConnected()) {
+        std::string msg;
+        if (receiveData(msg)) {
+            cout << "\n[PEER]" << msg << std::endl;
+        }
+    }
+}
+
+// Starting receiver thread
+
+void MySocket::startReceiver() {
+    // Creating thread, passing 'this' to let it know which instance to run receiverLoop on
+    receiverThread = std::thread(&MySocket::receiverLoop, this);
+}
+
+// Joining receiver thread
+
+void MySocket::joinReceiver() {
+    if (receiverThread.joinable()) {
+        receiverThread.join();
+    }
 }

@@ -17,6 +17,7 @@
 
 // General imports
 #include <string>
+#include <thread>
 
 // socket can be of type SOCKET for Windows and int for unix systems
 #ifdef _WIN32
@@ -44,6 +45,10 @@ class MySocket {
         std::string peerIP; // Store peer IP for reference
 
         bool ensureConnected() const; // Safety check method
+        
+        // Threading
+        void receiverLoop(); // Function that will keep on receiving messages from receiveData()
+        std::thread receiverThread; // For storing receiver thread which will run continuosly
 
 
     public:
@@ -52,8 +57,13 @@ class MySocket {
         bool connectSocket(const char* ipAddress, int port); // Connect to a server
         bool isConnected() const { return currentState == SocketState::CONNECTED; } // Check if socket is connected
 
+        // IO
         bool sendData(const std::string& data, int flags = 0); // Send data to the server
         bool receiveData(std::string& outData, int bufferSize = 1024, int flags = 0); // Receive data from the server
+
+        // Threading
+        void startReceiver(); // For user to launch the receiver thread
+        void joinReceiver(); // A way to wait for the thread to finish
 };
 
 #endif
