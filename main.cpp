@@ -9,7 +9,7 @@ int main() {
 
     std::string inputMessage;
     std::cin >> inputMessage;
-    while (input != "exit") {
+    while (inputMessage != "exit") {
         if (!socket.sendData(inputMessage)) break;
         std::cin >> inputMessage;
     }

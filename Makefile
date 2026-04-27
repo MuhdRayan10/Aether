@@ -1,7 +1,7 @@
 # Variables
 
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall
+CXXFLAGS = -std=c++17 -Wall -pthread
 TARGET = Aether
 SOURCES = main.cpp mySocket.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
