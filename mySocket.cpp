@@ -151,7 +151,7 @@ bool MySocket::receiveData(std::string& outData, int bufferSize, int flags) {
     // Creating a buffer to store the received data
     std::vector<char> buffer(bufferSize);
 
-    // result stores no. of bites received
+    // result stores no. of bytes received
     int result = recv(internalSocket, buffer.data(), bufferSize, flags);
 
     if (result < 0) {
@@ -162,7 +162,7 @@ bool MySocket::receiveData(std::string& outData, int bufferSize, int flags) {
     }
     else if (result == 0) {
         // Peer closed the connection
-        std::cout << "Peer closed the connection, no message received" << std::endl;
+        std::cout << "Peer closed the connection" << std::endl;
         currentState = SocketState::DISCONNECTED;
         return false;
     }
@@ -181,7 +181,7 @@ void MySocket::receiverLoop() {
     while (isConnected()) {
         std::string msg;
         if (receiveData(msg)) {
-            cout << "\n[PEER]" << msg << std::endl;
+            std::cout << "[PEER] " << msg << std::endl;
         }
     }
 }
