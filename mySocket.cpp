@@ -68,6 +68,13 @@ bool MySocket::connectSocket(const char* ipAddress, int port) {
         return true; // We can return true since it's already connected, but we warn the user about it
     }
     
+    if (currentState == SocketState::CONNECTING) {
+        std::cerr << "Socket is already in the process of connecting!" << std::endl;
+        return false; // We return false since we can't start a new connection while one is in progress
+    }
+
+    currentState = SocketState::CONNECTING; // Update state to connecting
+
     struct sockaddr_in serverAddress;
     std::memset(&serverAddress, 0, sizeof(serverAddress)); // fill with zeroes to remove garbage data
 
