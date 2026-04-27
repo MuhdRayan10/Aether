@@ -1,5 +1,6 @@
 #include "mySocket.h"
 #include <iostream>
+#include <vector>
 
 bool MySocket::initialized = false;
 int MySocket::activeSockets = 0;
@@ -107,12 +108,22 @@ bool MySocket::connectSocket(const char* ipAddress, int port) {
 
 }
 
-bool MySocket::sendData(const std::string& data, int flags) {
-    // Check if connection is established or not
-    if (!isConnected()) {
+// Ensure connection method
+bool MySocket::ensureConnected() const {
+    if (currentState != SocketState::CONNECTED) {
         std::cerr << "Connect socket to server first!" << std::endl;
         return false;
     }
+
+    return true;
+}
+
+
+// Send data method
+
+bool MySocket::sendData(const std::string& data, int flags) {
+    // Check if connection is established or not
+    if (!ensureConnected()) return false;
 
     // Sending data to the server
     int result = send(internalSocket, data.c_str(), data.length(), flags);
@@ -129,4 +140,35 @@ bool MySocket::sendData(const std::string& data, int flags) {
     return true;
 
 
+}
+
+// Receive data method
+
+bool MySocket::receiveData(std::string& outData, int bufferSize, int flags) {
+    // Check if connection is established or not
+    if (!ensureConnected()) return false;
+
+    // Creating a buffer to store the received data
+    std::vector<char> buffer(bufferSize);
+
+    // result stores no. of bites received
+    int result = recv(internalSocket, buffer.data(), bufferSize, flags);
+
+    if (result < 0) {
+        // Error, no message received
+        std::cerr << "Error, no message could be received" << std::endl;
+        currentState = SocketState::ERROR_STATE;
+        return false;
+    }
+    else if (result == 0) {
+        // Peer closed the connection
+        std::cout << "Peer closed the connection, no message received" << std::endl;
+        currentState = SocketState::DISCONNECTED;
+        return false;
+    }
+
+    // Message received successfully!
+    outData = std::string(buffer.data(), result);
+    std::cout << "Message: " << outData << std::endl;
+    return true;
 }
