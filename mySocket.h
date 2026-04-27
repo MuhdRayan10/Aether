@@ -18,6 +18,7 @@
 // General imports
 #include <string>
 #include <thread>
+#include "AerethPacket.h"
 
 // socket can be of type SOCKET for Windows and int for unix systems
 #ifdef _WIN32
