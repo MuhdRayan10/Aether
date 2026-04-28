@@ -118,25 +118,70 @@ bool MySocket::ensureConnected() const {
     return true;
 }
 
+/*
 
-// Send data method
+Send data methods
 
-bool MySocket::sendData(const std::string& data, int flags) {
+We have overloaded sendData with two functions:
+1. sendData(textMessage)
+2. sendData(data, type)
+
+(1) is merely for convencience
+(2) is the main sendData function that handles all types of data payloads
+
+*/
+
+bool MySocket::sendData(const std::string& textMessage, int flags) {
+    // Convert string to a vector of chars
+    std::vector<char> payload(textMessage.begin(), textMessage.end());
+
+    // Pass it to the real sendData function
+    return sendData(payload, PacketType::TEXT_MESSAGE, flags);
+}
+
+
+// NOTE: We are using vector<char> for data since it knows its own size as opposed to a pointer like const char*
+bool MySocket::sendData(const std::vector<char>& data, PacketType type, int flags) {
     // Check if connection is established or not
     if (!ensureConnected()) return false;
 
-    // Sending data to the server
-    int result = send(internalSocket, data.c_str(), data.length(), flags);
+    // Building packet header
+    AetherHeader header;
+    header.type = type;
 
-    if (result < 0) {
-        // Error, no message sent
+    // Convert size to to big endian
+    header.payloadSize = htonl(static_cast<uint32_t>(data.size()));
+
+    // Convert header to raw bytes
+    const char* rawBytes = reinterpret_cast<const char*>(&header);
+
+    // Send header first
+    int headerResult = send(internalSocket, rawBytes, sizeof(AetherHeader), flags);
+    
+    if (headerResult < 0) { // Handling error
         std::cerr << "Error - No message could be sent :(" << std::endl;
         currentState = SocketState::ERROR_STATE; // Update state to error
         return false;
     }
 
+    // Now sending actual data to the server
+    if (!data.empty()) {
+        int result = send(internalSocket, data.data(), data.size(), flags);
+        
+        if (result < 0) {
+        // Error, no message sent
+        std::cerr << "Error - No message could be sent :(" << std::endl;
+        currentState = SocketState::ERROR_STATE; // Update state to error
+
+        //Total no. of bytes sent
+        headerResult += result;
+        return false;
+        }
+
+    }
+
     // Succesfully sent the message, woohoo!
-    std::cout << result << " bytes of data were sent to " << peerIP << "!" << std::endl;
+    std::cout << headerResult << " bytes of data were sent to " << peerIP << "!" << std::endl;
     return true;
 
 

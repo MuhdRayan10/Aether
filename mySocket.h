@@ -18,7 +18,7 @@
 // General imports
 #include <string>
 #include <thread>
-#include "AerethPacket.h"
+#include "AetherPacket.h"
 
 // socket can be of type SOCKET for Windows and int for unix systems
 #ifdef _WIN32
@@ -59,7 +59,8 @@ class MySocket {
         bool isConnected() const { return currentState == SocketState::CONNECTED; } // Check if socket is connected
 
         // IO
-        bool sendData(const std::string& data, int flags = 0); // Send data to the server
+        bool sendData(const std::string& textMessage, int flags = 0); // Send text messages to peer
+        bool sendData(const std::vector<char>& data, PacketType type, int flags = 0); // Send data to peer (main sendData function)
         bool receiveData(std::string& outData, int bufferSize = 1024, int flags = 0); // Receive data from the server
 
         // Threading
