@@ -15,9 +15,9 @@ enum class PacketType : uint8_t {
 #pragma pack(push, 1) // to avoid padding (to keep things universal and lean)
 
 struct AetherHeader {
-    char magic[4] = {'A', 'E', 'T', 'H'} // the magic signature to ensure it is a valid packet
+    char magic[4] = {'A', 'E', 'T', 'H'}; // the magic signature to ensure it is a valid packet
     PacketType type;
     uint32_t payloadSize;
-}
+};
 
 #pragma pack(pop)
