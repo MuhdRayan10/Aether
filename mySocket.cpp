@@ -118,6 +118,67 @@ bool MySocket::ensureConnected() const {
     return true;
 }
 
+bool MySocket::startServer(int port) {
+    sockaddr_in serverAddress;
+    std::memset(&serverAddress, 0, sizeof(serverAddress)); // fill with zeroes to remove garbage data
+
+    serverAddress.sin_family = AF_INET; // We are using IPv4
+    serverAddress.sin_port = htons(port); // Convert port to network byte order (from little-endian to big-endian)
+    serverAddress.sin_addr.s_addr = INADDR_ANY; // Listen on all IP addresses of the machine
+
+    // Bind the socket to the specified port
+    int result = bind(internalSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress));
+
+    if (result < 0) {
+        std::cerr << "Binding failed :( Error: " << result << std::endl;
+        return false;
+    }
+
+    // Listen for incoming connections
+    int maxPendingConnections = 10; // Maximum number of pending connections in the queue
+    result = listen(internalSocket, maxPendingConnections); 
+
+    if (result < 0) {
+        std::cerr << "Listening failed :( Error: " << result << std::endl;
+        return false;
+    }
+    while (true) {
+        int clientSocket = accept(internalSocket, nullptr, nullptr); // Accept an incoming connection
+        if (clientSocket < 0) {
+        std::cerr << "Accepting connection failed :( Error: " << clientSocket << std::endl;
+        return false;
+    }
+
+    // Successful connection with client, we can now use clientSocket to send and receive messages with the client
+    clientSockets.push_back(clientSocket); 
+    std::cout << "Client connected successfully!" << std::endl;
+    }
+
+    
+    return true;
+
+
+}
+
+void MySocket::acceptLoop() {
+    while (true) {
+        SocketHandler clientSocket = accept(internalSocket, nullptr, nullptr); // Accept an incoming connection
+        if (clientSocket < 0) {
+            std::cerr << "Accepting connection failed :( Error: " << clientSocket << std::endl;
+            continue; // We can continue accepting other connections even if one fails
+        }
+        // Successful connection with client, we can now use clientSocket to send and receive messages with the client
+        clientSockets.push_back(clientSocket);
+        std::cout << "Client connected successfully!" << std::endl;
+
+        std::thread worker([this, clientSocket]() {
+            // Here we can handle communication with the client using clientSocket
+            this->receiverLoop(clientSocket); // We can reuse the receiverLoop function
+        });
+        worker.detach(); // Detach the thread to allow it to run independently
+    }
+}
+
 /*
 
 Send data methods
@@ -140,7 +201,7 @@ bool MySocket::sendData(const std::string& textMessage, int flags) {
 }
 
 
-// NOTE: We are using vector<char> for data since it knows its own size as opposed to a pointer like const char*
+// NOTE: We are using vector<char> for data since it knows its own size (as opposed to a pointer like const char*)
 bool MySocket::sendData(const std::vector<char>& data, PacketType type, int flags) {
     // Check if connection is established or not
     if (!ensureConnected()) return false;
@@ -169,14 +230,16 @@ bool MySocket::sendData(const std::vector<char>& data, PacketType type, int flag
         int result = send(internalSocket, data.data(), data.size(), flags);
         
         if (result < 0) {
-        // Error, no message sent
-        std::cerr << "Error - No message could be sent :(" << std::endl;
-        currentState = SocketState::ERROR_STATE; // Update state to error
+            // Error, no message sent
+            std::cerr << "Error - No message could be sent :(" << std::endl;
+            currentState = SocketState::ERROR_STATE; // Update state to error
 
+            return false;
+        }
+        
         //Total no. of bytes sent
         headerResult += result;
-        return false;
-        }
+        
 
     }
 
@@ -198,6 +261,8 @@ bool MySocket::receiveData(std::string& outData, int bufferSize, int flags) {
 
     // result stores no. of bytes received
     int result = recv(internalSocket, buffer.data(), bufferSize, flags);
+
+    std::cout << buffer.data() << std::endl;
 
     if (result < 0) {
         // Error, no message received
@@ -221,8 +286,9 @@ bool MySocket::receiveData(std::string& outData, int bufferSize, int flags) {
 
 // Receiver loop
 
-void MySocket::receiverLoop() {
+void MySocket::receiverLoop(SocketHandler clientSocket) {
     // Keep receiving messages while still connected
+    
     while (isConnected()) {
         std::string msg;
         if (receiveData(msg)) {

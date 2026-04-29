@@ -27,10 +27,10 @@ void runChatLoop(MySocket& socket) {
 
 int main() {
 
-    MySocket socket;
+    MySocket socket1, socket2;
     socket.connectSocket("127.0.0.1", 8080); // Replace with actual IP and port
     
-    runChatLoop(socket);
+    runChatLoop(socket2);
 
     return 0;
 }

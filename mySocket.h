@@ -47,6 +47,9 @@ class MySocket {
 
         bool ensureConnected() const; // Safety check method
         
+        // Server side
+        std::vector<SocketHandler> clientSockets; // To store client sockets when acting as a server
+
         // Threading
         void receiverLoop(); // Function that will keep on receiving messages from receiveData()
         std::thread receiverThread; // For storing receiver thread which will run continuosly
@@ -57,6 +60,7 @@ class MySocket {
         ~MySocket(); // Destructor to close socket
         bool connectSocket(const char* ipAddress, int port); // Connect to a server
         bool isConnected() const { return currentState == SocketState::CONNECTED; } // Check if socket is connected
+        bool startServer(int port); // Start a server to listen for incoming connections
 
         // IO
         bool sendData(const std::string& textMessage, int flags = 0); // Send text messages to peer
