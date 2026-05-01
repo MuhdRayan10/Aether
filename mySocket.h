@@ -43,45 +43,58 @@ class AetherSocket {
         static bool initialized; // Tracking if Winsock is initiliazed
         static int activeSockets; // Tracking active sockets to know when to cleanup Winsock
         SocketState currentState = SocketState::DISCONNECTED; // Current state of the socket
-        std::string peerIP; // Store peer IP for reference
 
         bool ensureConnected() const; // Safety check method
         
-        // Server side
-        std::vector<SocketHandler> clientSockets; // To store client sockets when acting as a server
-
-        // Threading
-        void receiverLoop(SocketHandler clientSocket); // Function that will keep on receiving messages from receiveData()
-        std::thread receiverThread; // For storing receiver thread which will run continuosly
-
-    protected:
-        
-
-
     public:
         AetherSocket(); // Constructor to create socket
-        ~AetherSocket(); // Destructor to close socket
-        bool connectSocket(const char* ipAddress, int port); // Connect to a server
-        bool isConnected() const { return currentState == SocketState::CONNECTED; } // Check if socket is connected
-        bool startServer(int port); // Start a server to listen for incoming connections
+        virtual ~AetherSocket(); // Destructor to close socket
+
+        // Check if socket is connected
+        bool isConnected() const { return currentState == SocketState::CONNECTED; } 
 
         // IO
         bool sendData(const std::string& textMessage, int flags = 0); // Send text messages to peer
         bool sendData(const std::vector<char>& data, PacketType type, int flags = 0); // Send data to peer (main sendData function)
-        bool receiveData(std::string& outData, SocketHandler clientSocket,int bufferSize = 1024, int flags = 0); // Receive data from the server
+        bool receiveData(std::string& outData, SocketHandler targetSocket, int bufferSize = 1024, int flags = 0); // Receive data from the server
+   
+};
+
+
+// Client class for connecting to a server and communicating with it
+class AetherClient : public AetherSocket {
+    private:
+        std::string peerIP; // Store peer IP for reference
+        
+        // Threading
+        std::thread receiverThread; // For storing receiver thread which will run continuosly to receive messages from peer
+        void receiverLoop(); // Function that will keep on receiving messages from receiveData()
+
+    public: // Constructur, destructor inherited from AetherSocket
+
+        // Connect to a server
+        bool connectSocket(const char* ipAddress, int port); 
 
         // Threading
         void startReceiver(); // For user to launch the receiver thread
         void joinReceiver(); // A way to wait for the thread to finish
+
+
 };
 
 
-class AetherClient : public AetherSocket {
-    
-};
-
+// Server class for accepting incoming connections and communicating with clients
 class AetherServer : public AetherSocket {
+    private:
+        // Server side
+        std::vector<SocketHandler> clientSockets; // To store client sockets when acting as a server
 
-}
+        // Threading
+        void acceptLoop(); // Function for continuously accepting incoming connections in an loop
+
+    public:
+        // Start a server to listen for incoming connections (backlog is the max number of pending connections)
+        bool startServer(int port, int backlog);
+};
 
 #endif
