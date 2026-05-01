@@ -61,53 +61,6 @@ AetherSocket::~AetherSocket() {
     currentState = SocketState::DISCONNECTED; // Update state to disconnected
 }
 
-// Connect to server code
-bool AetherClient::connectSocket(const char* ipAddress, int port) {
-    
-    if (isConnected()) {
-        std::cerr << "Socket is already connected!" << std::endl;
-        return true; // We can return true since it's already connected, but we warn the user about it
-    }
-    
-    if (currentState == SocketState::CONNECTING) {
-        std::cerr << "Socket is already in the process of connecting!" << std::endl;
-        return false; // We return false since we can't start a new connection while one is in progress
-    }
-
-    currentState = SocketState::CONNECTING; // Update state to connecting
-
-    struct sockaddr_in serverAddress;
-    std::memset(&serverAddress, 0, sizeof(serverAddress)); // fill with zeroes to remove garbage data
-
-    serverAddress.sin_family = AF_INET; // We are using IPv4
-
-    // Convert port to network byte order (from little-endian to big-endian)
-    serverAddress.sin_port = htons(port); 
-
-    // Convert IP address from string to binary form
-    int result = inet_pton(AF_INET, ipAddress, &serverAddress.sin_addr);
-
-    if (result != 1) {
-        std::cerr << "Invalid IP address!" << std::endl;
-        return false;
-    }
-
-    // Connect to the server
-    // Note: We have to cast sockaddr_in to sockaddr pointer
-    result = connect(internalSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)); 
-    if (result < 0) {
-        std::cerr << "Connection failed :( Error: " << result << std::endl;
-        return false;
-    }
-
-    // If we reach here, connection was successful, hooray!
-    std::cout << "Successful connection to " << ipAddress << ":" << port << std::endl;
-    currentState = SocketState::CONNECTED; // Update state to connected
-    peerIP = ipAddress; // Store the connected IP address
-    return true;
-
-}
-
 // Ensure connection method
 bool AetherSocket::ensureConnected() const {
     if (currentState != SocketState::CONNECTED) {
@@ -116,65 +69,6 @@ bool AetherSocket::ensureConnected() const {
     }
 
     return true;
-}
-
-bool AetherServer::startServer(int port, int backlog) {
-    sockaddr_in serverAddress;
-    std::memset(&serverAddress, 0, sizeof(serverAddress)); // fill with zeroes to remove garbage data
-
-    serverAddress.sin_family = AF_INET; // We are using IPv4
-    serverAddress.sin_port = htons(port); // Convert port to network byte order (from little-endian to big-endian)
-    serverAddress.sin_addr.s_addr = INADDR_ANY; // Listen on all IP addresses of the machine
-
-    // Bind the socket to the specified port
-    int result = bind(internalSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress));
-
-    if (result < 0) {
-        std::cerr << "Binding failed :( Error: " << result << std::endl;
-        return false;
-    }
-
-    // Listen for incoming connections
-    int maxPendingConnections = backlog; // Maximum number of pending connections in the queue
-    result = listen(internalSocket, maxPendingConnections); 
-
-    if (result < 0) {
-        std::cerr << "Listening failed :( Error: " << result << std::endl;
-        return false;
-    }
-
-    // Start accepting connections in a separate thread to avoid blocking the main thread
-    std::thread acceptThread(&AetherServer::acceptLoop, this); 
-    acceptThread.detach(); // Detach the thread to allow it to run independently
-
-    return true;
-
-
-}
-
-void AetherServer::acceptLoop() {
-    
-    // Infinite loop to keep accepting incoming connections as long as server is running
-    while (true) {
-
-        // Accept an incoming connection
-        SocketHandler clientSocket = accept(internalSocket, nullptr, nullptr); 
-        
-        if (clientSocket < 0) {
-            std::cerr << "Accepting connection failed :( Error: " << clientSocket << std::endl;
-            continue; // We can continue accepting other connections even if one fails
-        }
-
-        // Successful connection with client, we can now use clientSocket to send and receive messages with the client
-        clientSockets.push_back(clientSocket);
-        std::cout << "Client connected successfully!" << std::endl;
-
-        std::thread worker([this, clientSocket]() {
-            // Here we can handle communication with the client using clientSocket
-            this->receiverLoop(clientSocket); // We can reuse the receiverLoop function
-        });
-        worker.detach(); // Detach the thread to allow it to run independently
-    }
 }
 
 /*
@@ -280,9 +174,60 @@ bool AetherSocket::receiveData(std::string& outData, SocketHandler clientSocket,
     return true;
 }
 
-// THREADING SECTION
+/*
 
-// Receiver loop
+Client specific methods SECTION
+
+*/
+
+// Connect to server code
+bool AetherClient::connectSocket(const char* ipAddress, int port) {
+    
+    if (isConnected()) {
+        std::cerr << "Socket is already connected!" << std::endl;
+        return true; // We can return true since it's already connected, but we warn the user about it
+    }
+    
+    if (currentState == SocketState::CONNECTING) {
+        std::cerr << "Socket is already in the process of connecting!" << std::endl;
+        return false; // We return false since we can't start a new connection while one is in progress
+    }
+
+    currentState = SocketState::CONNECTING; // Update state to connecting
+
+    struct sockaddr_in serverAddress;
+    std::memset(&serverAddress, 0, sizeof(serverAddress)); // fill with zeroes to remove garbage data
+
+    serverAddress.sin_family = AF_INET; // We are using IPv4
+
+    // Convert port to network byte order (from little-endian to big-endian)
+    serverAddress.sin_port = htons(port); 
+
+    // Convert IP address from string to binary form
+    int result = inet_pton(AF_INET, ipAddress, &serverAddress.sin_addr);
+
+    if (result != 1) {
+        std::cerr << "Invalid IP address!" << std::endl;
+        return false;
+    }
+
+    // Connect to the server
+    // Note: We have to cast sockaddr_in to sockaddr pointer
+    result = connect(internalSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)); 
+    if (result < 0) {
+        std::cerr << "Connection failed :( Error: " << result << std::endl;
+        return false;
+    }
+
+    // If we reach here, connection was successful, hooray!
+    std::cout << "Successful connection to " << ipAddress << ":" << port << std::endl;
+    currentState = SocketState::CONNECTED; // Update state to connected
+    peerIP = ipAddress; // Store the connected IP address
+    return true;
+
+}
+
+// Receiver loop to continuously receive messages from the client while still connected
 
 void AetherClient::receiverLoop() {
     // Keep receiving messages while still connected
@@ -309,3 +254,73 @@ void AetherClient::joinReceiver() {
         receiverThread.join();
     }
 }
+
+
+/*
+
+Server specific methods SECTION
+
+*/
+
+// Start server and accept connections 
+bool AetherServer::startServer(int port, int backlog) {
+    sockaddr_in serverAddress;
+    std::memset(&serverAddress, 0, sizeof(serverAddress)); // fill with zeroes to remove garbage data
+
+    serverAddress.sin_family = AF_INET; // We are using IPv4
+    serverAddress.sin_port = htons(port); // Convert port to network byte order (from little-endian to big-endian)
+    serverAddress.sin_addr.s_addr = INADDR_ANY; // Listen on all IP addresses of the machine
+
+    // Bind the socket to the specified port
+    int result = bind(internalSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress));
+
+    if (result < 0) {
+        std::cerr << "Binding failed :( Error: " << result << std::endl;
+        return false;
+    }
+
+    // Listen for incoming connections
+    int maxPendingConnections = backlog; // Maximum number of pending connections in the queue
+    result = listen(internalSocket, maxPendingConnections); 
+
+    if (result < 0) {
+        std::cerr << "Listening failed :( Error: " << result << std::endl;
+        return false;
+    }
+
+    // Start accepting connections in a separate thread to avoid blocking the main thread
+    std::thread acceptThread(&AetherServer::acceptLoop, this); 
+    acceptThread.detach(); // Detach the thread to allow it to run independently
+
+    return true;
+
+
+}
+
+// Accept loop method to continuously accept incoming connections
+void AetherServer::acceptLoop() {
+    
+    // Infinite loop to keep accepting incoming connections as long as server is running
+    while (true) {
+
+        // Accept an incoming connection
+        SocketHandler clientSocket = accept(internalSocket, nullptr, nullptr); 
+        
+        if (clientSocket < 0) {
+            std::cerr << "Accepting connection failed :( Error: " << clientSocket << std::endl;
+            continue; // We can continue accepting other connections even if one fails
+        }
+
+        // Successful connection with client, we can now use clientSocket to send and receive messages with the client
+        clientSockets.push_back(clientSocket);
+        std::cout << "Client connected successfully!" << std::endl;
+
+        std::thread worker([this, clientSocket]() {
+            // Here we can handle communication with the client using clientSocket
+            this->receiverLoop(clientSocket); // We can reuse the receiverLoop function
+        });
+        worker.detach(); // Detach the thread to allow it to run independently
+    }
+}
+
+
