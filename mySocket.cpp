@@ -6,7 +6,7 @@ bool MySocket::initialized = false;
 int MySocket::activeSockets = 0;
 
 // Create socket code
-MySocket::MySocket() {
+AetherSocket::AetherSocket() {
 
     /* If Winsock is not initialized, we initialize it. 
     We only want to initialize it once, so we check the static variable 'initialized'. 
@@ -44,7 +44,7 @@ MySocket::MySocket() {
 }
 
 // Destroy socket code
-MySocket::~MySocket() {
+AetherSocket::~AetherSocket() {
     #ifdef _WIN32
         closesocket(internalSocket);   
     #else
@@ -62,7 +62,7 @@ MySocket::~MySocket() {
 }
 
 // Connect to server code
-bool MySocket::connectSocket(const char* ipAddress, int port) {
+bool AetherClient::connectSocket(const char* ipAddress, int port) {
     
     if (isConnected()) {
         std::cerr << "Socket is already connected!" << std::endl;
@@ -109,7 +109,7 @@ bool MySocket::connectSocket(const char* ipAddress, int port) {
 }
 
 // Ensure connection method
-bool MySocket::ensureConnected() const {
+bool AetherSocket::ensureConnected() const {
     if (currentState != SocketState::CONNECTED) {
         std::cerr << "Connect socket to server first!" << std::endl;
         return false;
@@ -118,7 +118,7 @@ bool MySocket::ensureConnected() const {
     return true;
 }
 
-bool MySocket::startServer(int port) {
+bool AetherServer::startServer(int port, int backlog) {
     sockaddr_in serverAddress;
     std::memset(&serverAddress, 0, sizeof(serverAddress)); // fill with zeroes to remove garbage data
 
@@ -135,7 +135,7 @@ bool MySocket::startServer(int port) {
     }
 
     // Listen for incoming connections
-    int maxPendingConnections = 10; // Maximum number of pending connections in the queue
+    int maxPendingConnections = backlog; // Maximum number of pending connections in the queue
     result = listen(internalSocket, maxPendingConnections); 
 
     if (result < 0) {
@@ -144,7 +144,7 @@ bool MySocket::startServer(int port) {
     }
 
     // Start accepting connections in a separate thread to avoid blocking the main thread
-    std::thread acceptThread(&MySocket::acceptLoop, this); 
+    std::thread acceptThread(&AetherServer::acceptLoop, this); 
     acceptThread.detach(); // Detach the thread to allow it to run independently
 
     return true;
@@ -152,7 +152,7 @@ bool MySocket::startServer(int port) {
 
 }
 
-void MySocket::acceptLoop() {
+void AetherServer::acceptLoop() {
     
     // Infinite loop to keep accepting incoming connections as long as server is running
     while (true) {
@@ -190,7 +190,7 @@ We have overloaded sendData with two functions:
 
 */
 
-bool MySocket::sendData(const std::string& textMessage, int flags) {
+bool AetherSocket::sendData(const std::string& textMessage, int flags) {
     // Convert string to a vector of chars
     std::vector<char> payload(textMessage.begin(), textMessage.end());
 
@@ -200,7 +200,7 @@ bool MySocket::sendData(const std::string& textMessage, int flags) {
 
 
 // NOTE: We are using vector<char> for data since it knows its own size (as opposed to a pointer like const char*)
-bool MySocket::sendData(const std::vector<char>& data, PacketType type, int flags) {
+bool AetherSocket::sendData(const std::vector<char>& data, PacketType type, int flags) {
     // Check if connection is established or not
     if (!ensureConnected()) return false;
 
@@ -250,7 +250,7 @@ bool MySocket::sendData(const std::vector<char>& data, PacketType type, int flag
 
 // Receive data method
 
-bool MySocket::receiveData(std::string& outData, SocketHandler clientSocket,int bufferSize, int flags) {
+bool AetherSocket::receiveData(std::string& outData, SocketHandler clientSocket,int bufferSize, int flags) {
     // Check if connection is established or not
     if (!ensureConnected()) return false;
 
@@ -284,7 +284,7 @@ bool MySocket::receiveData(std::string& outData, SocketHandler clientSocket,int 
 
 // Receiver loop
 
-void MySocket::receiverLoop(SocketHandler clientSocket) {
+void AetherClient::receiverLoop() {
     // Keep receiving messages while still connected
 
     while (isConnected()) {
@@ -297,14 +297,14 @@ void MySocket::receiverLoop(SocketHandler clientSocket) {
 
 // Starting receiver thread
 
-void MySocket::startReceiver() {
+void AetherClient::startReceiver() {
     // Creating thread, passing 'this' to let it know which instance to run receiverLoop on
     receiverThread = std::thread(&MySocket::receiverLoop, this);
 }
 
 // Joining receiver thread
 
-void MySocket::joinReceiver() {
+void AetherClient::joinReceiver() {
     if (receiverThread.joinable()) {
         receiverThread.join();
     }
