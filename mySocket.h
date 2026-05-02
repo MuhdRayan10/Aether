@@ -56,7 +56,7 @@ class AetherSocket {
         // IO
         bool sendData(const std::string& textMessage, int flags = 0); // Send text messages to peer
         bool sendData(const std::vector<char>& data, PacketType type, int flags = 0); // Send data to peer (main sendData function)
-        bool receiveData(std::string& outData, SocketHandler targetSocket, int bufferSize = 1024, int flags = 0); // Receive data from the server
+        bool receiveData(std::string& outData, int bufferSize = 1024, int flags = 0); // Receive data from the server
    
 };
 
@@ -82,12 +82,23 @@ class AetherClient : public AetherSocket {
 
 };
 
+// Session class for handling a client connection on the server side
+class AetherSession : public AetherSocket {
+    public:
+        AetherSession(SocketHandler clientSocket) {
+            internalSocket = clientSocket;
+            currentState = SocketState::CONNECTED; // Update state to connected since we are already connected to the client when we create the session
+        }
+        ~AetherSession() {}
+
+    // Both sendData() and recieveData() are inherited from AetherSocket class, we can use them to communicate with client
+};
 
 // Server class for accepting incoming connections and communicating with clients
 class AetherServer : public AetherSocket {
     private:
         // Server side
-        std::vector<SocketHandler> clientSockets; // To store client sockets when acting as a server
+        std::vector<AetherSession> activeConnections; // To store client sessions when acting as a server
 
         // Threading
         void acceptLoop(); // Function for continuously accepting incoming connections in an loop
@@ -96,5 +107,6 @@ class AetherServer : public AetherSocket {
         // Start a server to listen for incoming connections (backlog is the max number of pending connections)
         bool startServer(int port, int backlog);
 };
+
 
 #endif
