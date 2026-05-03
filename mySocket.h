@@ -19,6 +19,8 @@
 #include <string>
 #include <thread>
 #include "AetherPacket.h"
+#include <memory>
+#include <vector>
 
 // socket can be of type SOCKET for Windows and int for unix systems
 #ifdef _WIN32
@@ -44,7 +46,10 @@ class AetherSocket {
         static int activeSockets; // Tracking active sockets to know when to cleanup Winsock
         SocketState currentState = SocketState::DISCONNECTED; // Current state of the socket
 
+        std::string peerIP; // Store peer IP for reference
+
         bool ensureConnected() const; // Safety check method
+
         
     public:
         AetherSocket(); // Constructor to create socket
@@ -57,6 +62,8 @@ class AetherSocket {
         bool sendData(const std::string& textMessage, int flags = 0); // Send text messages to peer
         bool sendData(const std::vector<char>& data, PacketType type, int flags = 0); // Send data to peer (main sendData function)
         bool receiveData(std::string& outData, int bufferSize = 1024, int flags = 0); // Receive data from the server
+
+        void receiverLoop(); // Function that will keep on receiving messages from receiveData()
    
 };
 
@@ -64,11 +71,9 @@ class AetherSocket {
 // Client class for connecting to a server and communicating with it
 class AetherClient : public AetherSocket {
     private:
-        std::string peerIP; // Store peer IP for reference
         
         // Threading
         std::thread receiverThread; // For storing receiver thread which will run continuosly to receive messages from peer
-        void receiverLoop(); // Function that will keep on receiving messages from receiveData()
 
     public: // Constructur, destructor inherited from AetherSocket
 
@@ -85,10 +90,12 @@ class AetherClient : public AetherSocket {
 // Session class for handling a client connection on the server side
 class AetherSession : public AetherSocket {
     public:
-        AetherSession(SocketHandler clientSocket) {
-            internalSocket = clientSocket;
-            currentState = SocketState::CONNECTED; // Update state to connected since we are already connected to the client when we create the session
+        // Constructor that takes an already connected socket from accept()
+        AetherSession(SocketHandler establishedSocket) {
+            internalSocket = establishedSocket;
+            currentState = SocketState::CONNECTED; 
         }
+
         ~AetherSession() {}
 
     // Both sendData() and recieveData() are inherited from AetherSocket class, we can use them to communicate with client
@@ -98,12 +105,13 @@ class AetherSession : public AetherSocket {
 class AetherServer : public AetherSocket {
     private:
         // Server side
-        std::vector<AetherSession> activeConnections; // To store client sessions when acting as a server
+        std::vector<std::shared_ptr<AetherSession>> activeConnections; // To store client sessions when acting as a server
 
         // Threading
         void acceptLoop(); // Function for continuously accepting incoming connections in an loop
 
     public:
+        
         // Start a server to listen for incoming connections (backlog is the max number of pending connections)
         bool startServer(int port, int backlog);
 };

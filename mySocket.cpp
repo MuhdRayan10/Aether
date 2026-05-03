@@ -2,8 +2,8 @@
 #include <iostream>
 #include <vector>
 
-bool MySocket::initialized = false;
-int MySocket::activeSockets = 0;
+bool AetherSocket::initialized = false;
+int AetherSocket::activeSockets = 0;
 
 // Create socket code
 AetherSocket::AetherSocket() {
@@ -144,7 +144,7 @@ bool AetherSocket::sendData(const std::vector<char>& data, PacketType type, int 
 
 // Receive data method
 
-bool AetherSocket::receiveData(std::string& outData, SocketHandler clientSocket,int bufferSize, int flags) {
+bool AetherSocket::receiveData(std::string& outData, int bufferSize, int flags) {
     // Check if connection is established or not
     if (!ensureConnected()) return false;
 
@@ -152,7 +152,7 @@ bool AetherSocket::receiveData(std::string& outData, SocketHandler clientSocket,
     std::vector<char> buffer(bufferSize);
 
     // result stores no. of bytes received
-    int result = recv(clientSocket, buffer.data(), bufferSize, flags);
+    int result = recv(internalSocket, buffer.data(), bufferSize, flags);
 
     std::cout << buffer.data() << std::endl;
 
@@ -228,13 +228,12 @@ bool AetherClient::connectSocket(const char* ipAddress, int port) {
 }
 
 // Receiver loop to continuously receive messages from the client while still connected
-
-void AetherClient::receiverLoop() {
+void AetherSocket::receiverLoop() {
     // Keep receiving messages while still connected
 
     while (isConnected()) {
         std::string msg;
-        if (receiveData(msg, clientSocket)) {
+        if (receiveData(msg)) {
             std::cout << "[PEER] " << msg << std::endl;
         }
     }
@@ -244,7 +243,7 @@ void AetherClient::receiverLoop() {
 
 void AetherClient::startReceiver() {
     // Creating thread, passing 'this' to let it know which instance to run receiverLoop on
-    receiverThread = std::thread(&MySocket::receiverLoop, this);
+    receiverThread = std::thread(&AetherSocket::receiverLoop, this);
 }
 
 // Joining receiver thread
@@ -293,8 +292,6 @@ bool AetherServer::startServer(int port, int backlog) {
     acceptThread.detach(); // Detach the thread to allow it to run independently
 
     return true;
-
-
 }
 
 // Accept loop method to continuously accept incoming connections
@@ -304,20 +301,25 @@ void AetherServer::acceptLoop() {
     while (true) {
 
         // Accept an incoming connection
-        SocketHandler clientSocket = accept(internalSocket, nullptr, nullptr); 
+        SocketHandler rawSocket = accept(internalSocket, nullptr, nullptr); 
         
-        if (clientSocket < 0) {
-            std::cerr << "Accepting connection failed :( Error: " << clientSocket << std::endl;
+        if (rawSocket < 0) {
+            std::cerr << "Accepting connection failed :( Error: " << rawSocket << std::endl;
             continue; // We can continue accepting other connections even if one fails
         }
 
-        // Successful connection with client, we can now use clientSocket to send and receive messages with the client
-        clientSockets.push_back(clientSocket);
-        std::cout << "Client connected successfully!" << std::endl;
+        // Wrap the raw socket in an AetherSession object to handle communication with the client
+        std::shared_ptr<AetherSession> newClient = std::make_shared<AetherSession>(rawSocket);
 
-        std::thread worker([this, clientSocket]() {
-            // Here we can handle communication with the client using clientSocket
-            this->receiverLoop(clientSocket); // We can reuse the receiverLoop function
+        // Successful connection with client, we can now use newClient to send and receive messages with the client
+        activeConnections.push_back(newClient);
+        std::cout << "Client connected successfully!" << std::endl;
+        
+        
+
+        std::thread worker([newClient]() {
+            // Here we can handle communication with the client using newClient
+            newClient->receiverLoop();
         });
         worker.detach(); // Detach the thread to allow it to run independently
     }
